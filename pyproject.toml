@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shotdown-chatpdf"
-version = "0.2.0"
-description = "Capture very long WhatsApp Web conversations and package them into 2-3 size-capped PDF evidence files."
+version = "0.3.0"
+description = "Pick a scrollable region, capture it cleanly, and export long browser content as size-capped PDF evidence."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -16,7 +16,7 @@ dependencies = [
   "numpy>=1.26,<3",
   "reportlab>=4,<5",
 ]
-keywords = ["whatsapp","screenshot","pdf","evidence","playwright","long screenshot","chat capture"]
+keywords = ["screenshot","scroll capture","pdf","evidence","whatsapp","chrome extension","edge extension"]
 
 [project.urls]
 Homepage = "https://github.com/Mubax5/Shotdown"

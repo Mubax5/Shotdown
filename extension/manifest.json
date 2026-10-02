@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Shotdown",
+  "version": "0.3.0",
+  "description": "Select any scrollable region, crop it, and capture its full content from your current Chrome or Edge session.",
+  "permissions": ["activeTab", "scripting", "downloads"],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Shotdown — select a scrollable area"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Open Shotdown selector"
+    }
+  }
+}

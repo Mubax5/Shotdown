@@ -1,47 +1,68 @@
-# Shotdown — Panduan Bahasa Indonesia
+# Shotdown
 
-Shotdown adalah tool desktop lokal untuk menangkap percakapan WhatsApp Web yang sangat panjang lalu mengemasnya menjadi **2–3 file PDF** dengan batas ukuran yang ketat per file.
+Shotdown sekarang memakai **browser extension sebagai mode utama**, jadi tidak perlu buka browser/profile lain dan tidak perlu login WhatsApp dua kali.
 
-Tool ini dibuat untuk kasus ketika full-page screenshot extension berhenti di tengah, mengulang bagian chat, melewatkan pesan, atau menghasilkan garis/area rusak. WhatsApp Web memakai scroll container sendiri dan me-render histori chat secara dinamis.
+## Cara pakai
 
-## Default untuk bukti upload
+1. Buka Chrome atau Edge yang biasa kamu pakai.
+2. Buka halaman target, misalnya WhatsApp Web.
+3. Klik icon **Shotdown**.
+4. Hover area yang mau di-full screenshot.
+5. Klik area tersebut untuk mengunci scrollable container.
+6. Kalau target yang kepilih masih salah karena nested scroll, klik **Parent**.
+7. Opsional: klik **Crop**, lalu drag area persis yang mau masuk hasil.
+8. Pilih:
+   - **Full / load to top** untuk mengambil dari histori paling atas yang bisa dimuat sampai bawah.
+   - **Current to bottom** untuk mulai dari posisi sekarang.
+9. Klik **Capture PDF**.
 
-- Jumlah PDF: **auto**, coba 2 dulu lalu 3 bila perlu.
-- Batas per PDF: **3.00 MB / 3,000,000 byte**.
-- Maksimum file: **3**.
-- Ukuran halaman: **A4**.
-- Warna: aktif.
+## Khusus kasus WhatsApp Web
 
-## Cara pakai di Windows
+Sidebar dan area chat adalah scrollable component yang berbeda. Shotdown tidak menebak sidebar seperti full-page screenshot biasa. Kamu sendiri yang memilih area chat.
 
-1. Jalankan `setup_windows.bat` sekali.
-2. Jalankan `run_windows.bat`.
-3. Klik **Open WhatsApp**.
-4. Login bila perlu dan buka chat target.
-5. Klik **Check**.
-6. Klik **Start capture**.
-7. Tunggu proses scroll, screenshot, stitch, kompresi, dan verifikasi PDF selesai.
+Mode **Full / load to top** juga tidak langsung menganggap `scrollTop = 0` berarti histori sudah selesai. Shotdown:
 
-## UI
+- terus kembali ke atas;
+- menunggu layout/DOM stabil;
+- mengecek perubahan tinggi scroll dan fingerprint konten;
+- baru mulai capture setelah beberapa kali benar-benar stabil.
 
-Shotdown sengaja dibuat minimal dan netral:
+Saat proses turun ke bawah, Shotdown juga tidak langsung berhenti ketika scroll sempat macet. Ia menunggu lazy-loaded content, menghitung ulang batas scroll, dan butuh beberapa pengecekan bottom yang stabil sebelum menganggap capture selesai.
 
-- light mode dominan putih;
-- dark mode abu gelap;
-- tanpa gradient/dekorasi berlebihan;
-- pengaturan Export dan Capture dipisah;
-- theme tersimpan otomatis.
+## Hasil yang nyambung
+
+Setiap screenshot dibuat dengan overlap. Shotdown membandingkan bagian bawah frame sebelumnya dengan bagian atas frame berikutnya untuk mencari seam visual terbaik di sekitar actual scroll delta.
+
+Kalau seam belum meyakinkan, Shotdown menunggu render stabil lalu screenshot ulang sekali lagi sebelum memakai fallback. Tujuannya supaya pesan tidak dobel, tidak loncat, dan tidak muncul garis rusak di hasil.
+
+## PDF
+
+Default:
+
+- target 2 PDF;
+- maksimal 3 PDF;
+- maksimal 3,000,000 byte per PDF;
+- A4;
+- kompresi adaptif;
+- hasil otomatis masuk folder `Downloads\Shotdown`.
+
+## Menjalankan
+
+Double-click:
+
+```text
+run_extension.bat
+```
+
+Pertama kali saja:
+
+1. aktifkan Developer mode;
+2. klik **Load unpacked**;
+3. pilih folder `extension`;
+4. pin Shotdown.
+
+Setelah terpasang, tidak perlu menjalankan app desktop. Buka website seperti biasa lalu klik icon Shotdown.
 
 ## Privasi
 
-Shotdown tidak punya telemetry atau server upload. Screenshot dan PDF diproses lokal.
-
-Sesi WhatsApp Web tersimpan di:
-
-```text
-%USERPROFILE%\.shotdown\browser_profile
-```
-
-Folder tersebut sensitif karena dapat berisi sesi WhatsApp Web yang masih login. Jangan upload folder itu ke GitHub atau membagikannya.
-
-Shotdown tidak terafiliasi dengan WhatsApp atau Meta.
+Semua capture dan pembuatan PDF dilakukan lokal di browser. Tidak ada server upload, telemetry, atau profile WhatsApp terpisah.

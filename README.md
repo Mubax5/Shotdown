@@ -1,195 +1,144 @@
 # Shotdown
 
-**Capture very long WhatsApp Web conversations and turn them into compact, submission-ready PDF evidence.**
+**Pick any scrollable area in Chrome or Edge, optionally crop it, and capture the full content cleanly — without opening a second browser session.**
 
-[![CI](https://github.com/Mubax5/Shotdown/actions/workflows/ci.yml/badge.svg)](https://github.com/Mubax5/Shotdown/actions/workflows/ci.yml)
-[![Windows build](https://github.com/Mubax5/Shotdown/actions/workflows/windows-build.yml/badge.svg)](https://github.com/Mubax5/Shotdown/actions/workflows/windows-build.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-171717.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-171717.svg)](https://www.python.org/)
+Shotdown is a local browser extension for pages that contain multiple independent scroll regions. Instead of guessing which scrollbar to move, it lets you point at the exact scrollable container you want, lock it, crop the visible region like a snipping tool, and then capture that region from top to bottom.
 
-Shotdown is built for a specific failure mode: ordinary full-page screenshot tools often break on WhatsApp Web because the conversation lives inside its own scroll container and the message list is loaded and recycled dynamically. Shotdown scrolls the actual conversation pane, captures controlled viewport strips, removes overlap, paginates the result, then adaptively compresses it until every generated PDF respects the configured size cap.
+It was designed around difficult interfaces such as WhatsApp Web, where the chat and sidebar are separate scrollable components and older messages may load only after repeatedly reaching the top.
 
-> Shotdown is not affiliated with or endorsed by WhatsApp or Meta. It automates screen capture and PDF packaging; it does not independently establish the authenticity or legal admissibility of a conversation.
+## The workflow
 
-## Interface
+1. Open the page in the Chrome/Edge session you already use.
+2. Click the **Shotdown** extension icon.
+3. Hover the scrollable region you want. Shotdown outlines the nearest scrollable container.
+4. Click to lock it. Use **Parent** if the page has nested scroll containers.
+5. Optional: click **Crop** and drag the exact visible area that should appear in every captured frame.
+6. Choose:
+   - **Full / load to top** — repeatedly reaches the top until older/lazy-loaded content becomes stable.
+   - **Current to bottom** — starts exactly where you are.
+7. Click **Capture PDF**.
 
-The desktop UI is intentionally neutral and compact: white-dominant light mode, dark gray dark mode, no decorative gradients, and only the controls needed for capture and export.
+No extra WhatsApp login, no separate Playwright profile, no cloud upload.
 
+## Clean stitching
 
-## What it does
+Shotdown does not simply paste screenshots at fixed intervals.
 
-- Captures the actual WhatsApp Web conversation scroller instead of the browser page.
-- Loads older messages before capture in **Full conversation** mode.
-- Uses visual overlap matching plus scroll-distance fallback to reduce duplicated or missing seams.
-- Can include the chat header once for contact/context information.
-- Exports A4 or Letter PDFs.
-- Tries **2 PDF files first**, then automatically uses **3** when required to preserve readability.
-- Enforces a strict per-file size cap; the default is **3.00 MB = 3,000,000 bytes**.
-- Adaptively adjusts JPEG quality and resolution while prioritizing readable text.
-- Offers optional grayscale for difficult size limits.
-- Keeps the browser session locally so WhatsApp Web usually stays signed in.
-- Processes captures locally. No telemetry, no upload backend.
-- Removes raw screenshots after a successful export by default.
-- Includes a persistent light/dark theme and adjustable capture settings.
+For every frame it:
 
-## Windows quick start
+- records the actual scroll delta;
+- waits for layout changes and visible images;
+- captures with intentional overlap;
+- compares the bottom of the previous frame with the top of the next frame;
+- finds the best visual seam close to the expected scroll overlap;
+- retries a difficult seam after another stabilization wait;
+- only falls back to the measured scroll delta when visual matching remains ambiguous.
 
-Requirements: **Windows 10/11** and **Python 3.10+**.
+This is meant to avoid duplicated message rows, missing rows, black bands, and the broken stripes commonly produced by generic full-page screenshot tools on virtualized chat UIs.
 
-1. Download or clone this repository.
-2. Run `setup_windows.bat` once.
-3. Run `run_windows.bat`.
-4. Click **Open WhatsApp** and sign in if needed.
-5. Open the conversation you want to capture.
-6. Click **Check** to verify the chat pane.
-7. Click **Start capture**.
+## Lazy-loaded and virtualized content
 
-The default evidence profile is designed for portals that only allow a few uploads:
+Shotdown explicitly avoids treating a temporary lack of scroll movement as the end.
 
-```text
-PDF files       auto (2 first, then 3)
-Max size        3.00 MB per file
-Maximum files   3
-Page size       A4
-Color           on
-```
+**Before a Full capture**, it repeatedly sets the selected container to the top, waits for the DOM/layout to stabilize, fingerprints the leading content, and requires multiple stable passes before deciding that older history has finished loading.
 
-## Why full-page screenshot extensions fail here
+**During capture**, the maximum scroll range is recalculated continuously. If scrolling stalls or the container reaches its current bottom, Shotdown waits for additional content and requires repeated stable bottom checks before ending the capture.
 
-WhatsApp Web is not one tall, static page. Older messages are loaded while the conversation scrolls upward, and off-screen message elements may be recycled. A normal full-page extension can therefore stop early, repeat messages, leave gaps, or generate corrupted stripes.
+The original scroll position is restored when the run finishes or is cancelled.
 
-Shotdown uses a different pipeline:
+## PDF evidence defaults
 
-```text
-open WhatsApp Web
-      |
-find the real message scroller
-      |
-load older history until stable
-      |
-capture visible viewport
-      |
-scroll only the conversation pane
-      |
-match and crop overlap
-      |
-repeat to the bottom
-      |
-paginate to A4 / Letter
-      |
-compress + split into 2 or 3 PDFs
-      |
-verify every PDF <= configured cap
-```
+The extension exports A4 PDFs and checks the **actual PDF byte size**.
 
-See [docs/ALGORITHM.md](docs/ALGORITHM.md) for implementation details.
+- target: **2 PDF files**
+- fallback: **up to 3 PDF files**
+- default hard limit: **3,000,000 bytes per PDF**
+- compression prioritizes readable resolution before aggressive downscaling
+- files are saved under the browser Downloads folder in `Shotdown/`
 
-## Output
+If two files would require excessive compression, Shotdown tries three before using the aggressive fallback profile.
 
-Typical two-part output:
+## Install / run on Windows
+
+There is no build step and no Node/Python dependency for the browser extension.
+
+Run:
 
 ```text
-chat_evidence_part_01-of-02.pdf
-chat_evidence_part_02-of-02.pdf
+run_extension.bat
 ```
 
-If two files would require too much compression, Shotdown can move to three parts:
+The helper opens the extension folder and your browser's extension manager.
+
+On the first run:
+
+1. Enable **Developer mode**.
+2. Click **Load unpacked**.
+3. Select the repository's `extension` folder.
+4. Pin **Shotdown** to the toolbar.
+
+After that, just use your normal browser and click the Shotdown icon whenever you want to capture something.
+
+Chrome: `chrome://extensions/`  
+Edge: `edge://extensions/`
+
+## Keyboard shortcut
+
+The manifest registers:
 
 ```text
-chat_evidence_part_01-of-03.pdf
-chat_evidence_part_02-of-03.pdf
-chat_evidence_part_03-of-03.pdf
+Alt + Shift + S
 ```
 
-The exporter checks the **actual final PDF byte size**, not only an estimate. If PDF overhead pushes a file beyond the cap, it retries with a slightly lower image quality.
+You can change it in the browser's extension-shortcuts page.
 
-## Capture modes
+## Privacy
 
-### Full conversation
+Shotdown uses the current active tab only after you invoke it.
 
-Moves the conversation pane to the top repeatedly until WhatsApp stops adding older history, or until the configured history timeout is reached. It then captures from the oldest loaded message to the bottom.
+- no separate browser profile;
+- no account/session copying;
+- no telemetry;
+- no remote screenshot service;
+- no chat upload;
+- processing and PDF creation happen inside your browser.
 
-### Current to bottom
+The extension requests only `activeTab`, `scripting`, and `downloads`.
 
-Starts from the current scroll position and captures downward. Useful when only part of a very large conversation is relevant.
-
-## Adjustable settings
-
-**Export**
-
-- output folder
-- filename prefix
-- auto / 2 / 3 PDF files
-- maximum MB per file
-- A4 / Letter page size
-- grayscale
-- keep or delete raw capture files
-
-**Capture**
-
-- full / current-to-bottom range
-- custom CSS selector fallback
-- overlap size
-- scroll delay
-- history timeout
-- include chat header
-
-Settings are stored locally at:
+## Project structure
 
 ```text
-%USERPROFILE%\.shotdown\settings.json
+extension/
+  manifest.json
+  service-worker.js
+  content.js
+
+run_extension.bat
+package_extension.bat
+
+src/longchatpdf/
+  ... legacy desktop implementation ...
 ```
 
-The persistent WhatsApp browser profile is stored under:
+The browser extension is now the primary Shotdown experience. The Python desktop implementation remains in the repository as a legacy/fallback implementation while the extension matures.
 
-```text
-%USERPROFILE%\.shotdown\browser_profile
-```
+## Browser limitations
 
-Treat that browser profile as sensitive because it can contain an authenticated WhatsApp Web session.
+Shotdown cannot run on protected browser pages such as `chrome://`, `edge://`, extension-store pages, or other pages where Chromium blocks extension script injection.
 
-## Development
+Highly dynamic sites can still change their layout during capture. When Shotdown reports a seam fallback, review the resulting PDF once before submitting it as evidence.
+
+## Development check
+
+The extension has no bundler. Syntax can be checked directly:
 
 ```powershell
-py -m venv .venv
-.venv\Scripts\activate
-python -m pip install -U pip
-pip install -e .[dev]
-python -m playwright install chromium
-pytest -q
-python -m longchatpdf
+node --check extension\content.js
+node --check extension\service-worker.js
 ```
 
-The public product name is **Shotdown**. The Python package remains `longchatpdf` internally for compatibility with the original capture pipeline.
-
-```text
-src/longchatpdf/
-  browser.py       Playwright capture + history loading + seam handling
-  paginate.py      captured strips -> page-shaped raster images
-  pdf_export.py    adaptive compression + partitioning + hard-cap verification
-  pipeline.py      capture -> pages -> PDFs
-  ui.py            Shotdown desktop interface + light/dark themes
-  config.py        persistent local settings
-```
-
-See [docs/CUSTOMIZATION.md](docs/CUSTOMIZATION.md) before changing capture/export behavior.
-
-## Privacy and security
-
-Shotdown has no telemetry and no upload service. The only network activity is the browser loading WhatsApp Web itself. Chat screenshots and generated PDFs are processed on the local machine.
-
-Raw temporary captures can contain private messages. They are removed after a successful export unless **Keep raw capture files** is enabled. If an export fails, the work directory is retained for troubleshooting.
-
-Please read [SECURITY.md](SECURITY.md) before sharing logs or bug reports.
-
-## Known limitations
-
-- WhatsApp can change its DOM at any time. Auto-detection is heuristic and a selector override is available as a fallback.
-- Very large conversations can take several minutes to load and capture.
-- Incoming messages or late-loading media can change scroll height during a run.
-- A fixed storage budget has a physical limit. If an extremely long conversation cannot remain readable inside `3 × 3 MB`, reduce the capture range, enable grayscale, or increase the cap.
-- Always inspect final PDFs at 100% zoom before submitting them.
+GitHub Actions runs these checks automatically.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. Shotdown is not affiliated with or endorsed by WhatsApp or Meta.
