@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shotdown-chatpdf"
+version = "0.2.0"
+description = "Capture very long WhatsApp Web conversations and package them into 2-3 size-capped PDF evidence files."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Mubax5"}]
+dependencies = [
+  "playwright>=1.45,<2",
+  "Pillow>=10,<13",
+  "numpy>=1.26,<3",
+  "reportlab>=4,<5",
+]
+keywords = ["whatsapp","screenshot","pdf","evidence","playwright","long screenshot","chat capture"]
+
+[project.urls]
+Homepage = "https://github.com/Mubax5/Shotdown"
+Repository = "https://github.com/Mubax5/Shotdown"
+Issues = "https://github.com/Mubax5/Shotdown/issues"
+
+[project.scripts]
+shotdown = "longchatpdf.ui:main"
+longchatpdf = "longchatpdf.ui:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8","pyinstaller>=6"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
