@@ -15,11 +15,6 @@ Shotdown is built for a specific failure mode: ordinary full-page screenshot too
 
 The desktop UI is intentionally neutral and compact: white-dominant light mode, dark gray dark mode, no decorative gradients, and only the controls needed for capture and export.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/shotdown-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="assets/shotdown-light.png">
-  <img alt="Shotdown desktop interface" src="assets/shotdown-light.png">
-</picture>
 
 ## What it does
 
