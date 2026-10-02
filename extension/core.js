@@ -136,32 +136,77 @@
     const min = Math.max(8, expected - radius);
     const max = Math.min(maxOverlap, expected + radius);
 
-    const candidates = [];
-    for (let overlap = min; overlap <= max; overlap += 4) {
+    const evaluated = new Map();
+
+    function evaluate(overlap) {
+      overlap = clamp(Math.round(overlap), min, max);
+      if (evaluated.has(overlap)) return evaluated.get(overlap);
+
       const visual = overlapScore(a, b, overlap);
       const combined = visual + Math.abs(overlap - expected) * 0.016;
-      candidates.push({ overlap, visual, combined });
+      const result = { overlap, visual, combined };
+      evaluated.set(overlap, result);
+      return result;
     }
 
-    candidates.sort((x, y) => x.combined - y.combined);
-    let best = candidates[0] || {
+    // The measured scroll delta is usually close to the correct seam, so always
+    // search it densely. This avoids missing the true overlap because of coarse
+    // step alignment.
+    for (
+      let overlap = Math.max(min, expected - 20);
+      overlap <= Math.min(max, expected + 20);
+      overlap += 1
+    ) {
+      evaluate(overlap);
+    }
+
+    // Also scan the wider window for cases where dynamic layout changes made the
+    // measured scroll delta imperfect.
+    for (let overlap = min; overlap <= max; overlap += 5) {
+      evaluate(overlap);
+    }
+    evaluate(max);
+
+    let ranked = [...evaluated.values()].sort(
+      (x, y) => x.combined - y.combined,
+    );
+
+    // Refine several strong basins, not only the first coarse winner. Repetitive
+    // wallpapers can otherwise create a false local minimum.
+    const seeds = [];
+    for (const candidate of ranked) {
+      if (
+        seeds.every(
+          (seed) => Math.abs(seed.overlap - candidate.overlap) >= 10,
+        )
+      ) {
+        seeds.push(candidate);
+      }
+      if (seeds.length >= 5) break;
+    }
+
+    for (const seed of seeds) {
+      for (
+        let overlap = Math.max(min, seed.overlap - 6);
+        overlap <= Math.min(max, seed.overlap + 6);
+        overlap += 1
+      ) {
+        evaluate(overlap);
+      }
+    }
+
+    ranked = [...evaluated.values()].sort(
+      (x, y) => x.combined - y.combined,
+    );
+
+    const best = ranked[0] || {
       overlap: expected,
       visual: 255,
       combined: 255,
     };
 
-    const refineMin = Math.max(min, best.overlap - 6);
-    const refineMax = Math.min(max, best.overlap + 6);
-    for (let overlap = refineMin; overlap <= refineMax; overlap += 1) {
-      const visual = overlapScore(a, b, overlap);
-      const combined = visual + Math.abs(overlap - expected) * 0.016;
-      if (combined < best.combined) {
-        best = { overlap, visual, combined };
-      }
-    }
-
     let secondVisual = Number.POSITIVE_INFINITY;
-    for (const candidate of candidates) {
+    for (const candidate of ranked) {
       if (Math.abs(candidate.overlap - best.overlap) >= 12) {
         secondVisual = Math.min(secondVisual, candidate.visual);
       }
