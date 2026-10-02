@@ -1,0 +1,20 @@
+name: Bug report
+description: Report a capture, UI, or PDF export problem.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not attach private chats, cookies, browser profiles, or session data. Use redacted screenshots."
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
