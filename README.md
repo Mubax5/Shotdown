@@ -1,143 +1,188 @@
 # Shotdown
 
-**Pick any scrollable area in Chrome or Edge, optionally crop it, and capture the full content cleanly — without opening a second browser session.**
+**Select the exact scrollable area you want, crop it like a snipping tool, and capture long dynamic content cleanly from your existing Chrome or Edge session.**
 
-Shotdown is a local browser extension for pages that contain multiple independent scroll regions. Instead of guessing which scrollbar to move, it lets you point at the exact scrollable container you want, lock it, crop the visible region like a snipping tool, and then capture that region from top to bottom.
+Shotdown is built for pages with multiple independent scroll regions: WhatsApp Web, dashboards, web apps, chat interfaces, feeds, panels, and nested scroll containers. It does not open a second browser profile and does not require another login.
 
-It was designed around difficult interfaces such as WhatsApp Web, where the chat and sidebar are separate scrollable components and older messages may load only after repeatedly reaching the top.
+## Why Shotdown
 
-## The workflow
+Ordinary full-page screenshot tools often fail on modern web apps because they:
 
-1. Open the page in the Chrome/Edge session you already use.
-2. Click the **Shotdown** extension icon.
-3. Hover the scrollable region you want. Shotdown outlines the nearest scrollable container.
-4. Click to lock it. Use **Parent** if the page has nested scroll containers.
-5. Optional: click **Crop** and drag the exact visible area that should appear in every captured frame.
-6. Choose:
-   - **Full / load to top** — repeatedly reaches the top until older/lazy-loaded content becomes stable.
-   - **Current to bottom** — starts exactly where you are.
-7. Click **Capture PDF**.
+- scroll the wrong container;
+- stop when lazy-loaded content has not finished loading;
+- duplicate or skip rows when a virtualized list re-renders;
+- repeat sticky headers/composers on every frame;
+- exceed browser canvas limits on very long captures.
 
-No extra WhatsApp login, no separate Playwright profile, no cloud upload.
+Shotdown handles those cases explicitly.
+
+## Workflow
+
+1. Open the page in the browser session you already use.
+2. Click **Shotdown** or press **Alt + Shift + S**.
+3. Hover the target scrollable region.
+4. Click to lock it.
+5. Use **Parent** when the page has nested scroll containers.
+6. Optional: click **Crop** and drag the exact region to keep.
+7. Choose:
+   - **Full / load to top** for complete history;
+   - **Current to bottom** to start from the current position.
+8. Click **Capture PDF**.
+
+Keep the target tab active while capture is running.
 
 ## Clean stitching
 
-Shotdown does not simply paste screenshots at fixed intervals.
+Shotdown v0.4 uses multiple layers of protection instead of blindly pasting screenshots:
 
-For every frame it:
+- captures the actual measured scroll delta;
+- waits for DOM/layout stability and visible images;
+- throttles browser screenshots to stay within Chromium limits;
+- compares image edges and color information across overlapping frames;
+- rejects ambiguous visual seams and falls back to the measured scroll distance;
+- retries difficult seams after an extra stabilization wait;
+- pauses CSS animations/transitions during capture;
+- restores the original scroll position afterward.
 
-- records the actual scroll delta;
-- waits for layout changes and visible images;
-- captures with intentional overlap;
-- compares the bottom of the previous frame with the top of the next frame;
-- finds the best visual seam close to the expected scroll overlap;
-- retries a difficult seam after another stabilization wait;
-- only falls back to the measured scroll delta when visual matching remains ambiguous.
+### Fixed headers and footers
 
-This is meant to avoid duplicated message rows, missing rows, black bands, and the broken stripes commonly produced by generic full-page screenshot tools on virtualized chat UIs.
+Shotdown compares the first moving frames and conservatively detects stable top/bottom bands.
 
-## Lazy-loaded and virtualized content
+If a sticky header or composer is truly stationary:
 
-Shotdown explicitly avoids treating a temporary lack of scroll movement as the end.
+- the top band is kept once at the beginning;
+- the bottom band is kept once at the end;
+- it is not duplicated between every stitched frame.
 
-**Before a Full capture**, it repeatedly sets the selected container to the top, waits for the DOM/layout to stabilize, fingerprints the leading content, and requires multiple stable passes before deciding that older history has finished loading.
+Manual Crop is still available when you want exact control.
 
-**During capture**, the maximum scroll range is recalculated continuously. If scrolling stalls or the container reaches its current bottom, Shotdown waits for additional content and requires repeated stable bottom checks before ending the capture.
+## Lazy-loaded / virtualized history
 
-The original scroll position is restored when the run finishes or is cancelled.
+**Full / load to top** does not treat the first `scrollTop = 0` as the real beginning.
 
-## PDF evidence defaults
+Shotdown repeatedly:
 
-The extension exports A4 PDFs and checks the **actual PDF byte size**.
+- reaches the top;
+- waits for DOM mutations and layout changes to settle;
+- checks scroll geometry, child structure, and content fingerprints;
+- requires repeated stable passes before starting capture.
 
-- target: **2 PDF files**
-- fallback: **up to 3 PDF files**
-- default hard limit: **3,000,000 bytes per PDF**
-- compression prioritizes readable resolution before aggressive downscaling
-- files are saved under the browser Downloads folder in `Shotdown/`
+During the downward pass it also recalculates the current bottom continuously. A temporary stall is retried and lazy-loaded growth is given time to appear before Shotdown decides the capture is complete.
 
-If two files would require excessive compression, Shotdown tries three before using the aggressive fallback profile.
+## Memory-safe long captures
+
+Shotdown does not build one enormous long canvas.
+
+Stitched content is streamed into A4 page sources as capture progresses. Completed pages are compressed to local PNG blobs and the large frame canvases are released, reducing the chance of tab crashes on very long conversations.
+
+## PDF output
+
+Default evidence profile:
+
+- tries **2 PDFs first**;
+- falls back to **3 PDFs** when needed;
+- default hard cap: **3,000,000 bytes per PDF**;
+- A4 pages;
+- adaptive quality/resolution;
+- final PDF byte sizes are verified before download;
+- files go to `Downloads/Shotdown/`.
+
+The optimizer keeps a readability floor before switching to the more aggressive compression profile.
+
+## Safety against wrong-tab captures
+
+Chromium's screenshot API captures the active visible tab. Shotdown verifies the requesting tab before **every screenshot**.
+
+If you switch tabs or hide the target during capture, Shotdown stops with an error instead of silently capturing the wrong page.
 
 ## Install / run on Windows
 
-There is no build step and no Node/Python dependency for the browser extension.
-
-Run:
+Double-click:
 
 ```text
 run_extension.bat
 ```
 
-The helper opens the extension folder and your browser's extension manager.
+It opens the extension folder and the extension manager for the browser already running when possible.
 
-On the first run:
+First install only:
 
 1. Enable **Developer mode**.
 2. Click **Load unpacked**.
-3. Select the repository's `extension` folder.
-4. Pin **Shotdown** to the toolbar.
+3. Select the `extension` folder.
+4. Pin Shotdown.
 
-After that, just use your normal browser and click the Shotdown icon whenever you want to capture something.
-
-Chrome: `chrome://extensions/`  
-Edge: `edge://extensions/`
-
-## Keyboard shortcut
-
-The manifest registers:
+Optional:
 
 ```text
-Alt + Shift + S
+run_extension.bat chrome
+run_extension.bat edge
 ```
 
-You can change it in the browser's extension-shortcuts page.
+No Node, Python, Playwright, or second browser login is required for the extension.
 
-## Privacy
+## Package
 
-Shotdown uses the current active tab only after you invoke it.
+To create a ZIP:
 
-- no separate browser profile;
-- no account/session copying;
-- no telemetry;
-- no remote screenshot service;
-- no chat upload;
-- processing and PDF creation happen inside your browser.
+```text
+package_extension.bat
+```
 
-The extension requests only `activeTab`, `scripting`, and `downloads`.
+## Repository metadata
 
-## Project structure
+If the GitHub About description/topics are empty and GitHub CLI is installed:
+
+```text
+setup_github_metadata.bat
+```
+
+## Development
+
+```powershell
+node --check extension\core.js
+node --check extension\content.js
+node --check extension\service-worker.js
+node extension\tests\core.test.cjs
+```
+
+GitHub Actions runs these checks automatically.
+
+## Structure
 
 ```text
 extension/
   manifest.json
-  service-worker.js
+  core.js
   content.js
+  service-worker.js
+  tests/core.test.cjs
 
 run_extension.bat
 package_extension.bat
+setup_github_metadata.bat
 
 src/longchatpdf/
-  ... legacy desktop implementation ...
+  ... legacy desktop fallback ...
 ```
 
-The browser extension is now the primary Shotdown experience. The Python desktop implementation remains in the repository as a legacy/fallback implementation while the extension matures.
+## Privacy
 
-## Browser limitations
+Shotdown processes capture data locally in the browser.
 
-Shotdown cannot run on protected browser pages such as `chrome://`, `edge://`, extension-store pages, or other pages where Chromium blocks extension script injection.
+- no telemetry;
+- no cloud upload;
+- no copied browser profile;
+- no separate WhatsApp session;
+- no remote screenshot backend.
 
-Highly dynamic sites can still change their layout during capture. When Shotdown reports a seam fallback, review the resulting PDF once before submitting it as evidence.
+Permissions are limited to `activeTab`, `scripting`, and `downloads`.
 
-## Development check
+## Limitations
 
-The extension has no bundler. Syntax can be checked directly:
+Shotdown cannot run on browser-protected pages such as `chrome://`, `edge://`, or browser extension stores. Cross-origin iframe internals may also be unavailable for direct DOM selection.
 
-```powershell
-node --check extension\content.js
-node --check extension\service-worker.js
-```
-
-GitHub Actions runs these checks automatically.
+For evidence use, review the final PDFs once before submitting them, especially if Shotdown reports seam fallbacks.
 
 ## License
 

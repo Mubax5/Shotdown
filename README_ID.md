@@ -1,50 +1,56 @@
 # Shotdown
 
-Shotdown sekarang memakai **browser extension sebagai mode utama**, jadi tidak perlu buka browser/profile lain dan tidak perlu login WhatsApp dua kali.
+Shotdown v0.4 adalah browser extension untuk **full screenshot scrollable area yang kamu pilih sendiri**, bukan aplikasi yang membuka browser/profile baru.
 
 ## Cara pakai
 
-1. Buka Chrome atau Edge yang biasa kamu pakai.
-2. Buka halaman target, misalnya WhatsApp Web.
+1. Buka Chrome/Edge yang biasa dipakai.
+2. Buka halaman target.
 3. Klik icon **Shotdown**.
-4. Hover area yang mau di-full screenshot.
-5. Klik area tersebut untuk mengunci scrollable container.
-6. Kalau target yang kepilih masih salah karena nested scroll, klik **Parent**.
-7. Opsional: klik **Crop**, lalu drag area persis yang mau masuk hasil.
-8. Pilih:
-   - **Full / load to top** untuk mengambil dari histori paling atas yang bisa dimuat sampai bawah.
-   - **Current to bottom** untuk mulai dari posisi sekarang.
+4. Hover area yang ingin di-full screenshot.
+5. Klik untuk mengunci target.
+6. Kalau nested scroll salah target, klik **Parent**.
+7. Kalau perlu, klik **Crop** lalu drag bagian yang ingin dipertahankan.
+8. Pilih **Full / load to top** atau **Current to bottom**.
 9. Klik **Capture PDF**.
 
-## Khusus kasus WhatsApp Web
+Jaga tab target tetap aktif selama proses.
 
-Sidebar dan area chat adalah scrollable component yang berbeda. Shotdown tidak menebak sidebar seperti full-page screenshot biasa. Kamu sendiri yang memilih area chat.
+## Yang dimatangkan di v0.4
 
-Mode **Full / load to top** juga tidak langsung menganggap `scrollTop = 0` berarti histori sudah selesai. Shotdown:
+- screenshot browser di-throttle supaya tidak kena limit Chromium;
+- setiap screenshot mengecek bahwa tab Shotdown masih tab aktif;
+- kalau elemen target diganti/dihapus oleh web app, proses berhenti aman;
+- loader histori atas menunggu DOM/layout benar-benar stabil;
+- scroll yang macet sementara tidak langsung dianggap selesai;
+- seam memakai **visual edge matching + actual scroll delta**;
+- seam ambigu di-retry lalu fallback ke delta scroll terukur;
+- animasi/transisi CSS dipause selama capture untuk mengurangi flicker;
+- sticky header/footer yang benar-benar statis dideteksi konservatif dan hanya disimpan sekali;
+- hasil tidak disatukan ke satu canvas raksasa;
+- konten dialirkan ke halaman A4 selama proses supaya memori lebih aman;
+- optimizer mencoba 2 PDF dulu, baru 3 PDF;
+- ukuran final setiap PDF tetap diverifikasi;
+- ada tombol **Cancel** selain tombol Esc;
+- posisi scroll awal dikembalikan setelah selesai.
 
-- terus kembali ke atas;
-- menunggu layout/DOM stabil;
-- mengecek perubahan tinggi scroll dan fingerprint konten;
-- baru mulai capture setelah beberapa kali benar-benar stabil.
+## WhatsApp Web
 
-Saat proses turun ke bawah, Shotdown juga tidak langsung berhenti ketika scroll sempat macet. Ia menunggu lazy-loaded content, menghitung ulang batas scroll, dan butuh beberapa pengecekan bottom yang stabil sebelum menganggap capture selesai.
+Ini tetap salah satu kasus utama Shotdown.
 
-## Hasil yang nyambung
+Sidebar dan chat adalah scroll container berbeda, jadi pilih sendiri area chat. Untuk chat panjang gunakan **Full / load to top**.
 
-Setiap screenshot dibuat dengan overlap. Shotdown membandingkan bagian bawah frame sebelumnya dengan bagian atas frame berikutnya untuk mencari seam visual terbaik di sekitar actual scroll delta.
+Shotdown tidak langsung menganggap posisi paling atas sebagai histori paling awal. Ia melakukan beberapa pass, menunggu perubahan DOM/layout, lalu baru mulai capture setelah histori stabil berkali-kali.
 
-Kalau seam belum meyakinkan, Shotdown menunggu render stabil lalu screenshot ulang sekali lagi sebelum memakai fallback. Tujuannya supaya pesan tidak dobel, tidak loncat, dan tidak muncul garis rusak di hasil.
+Saat turun, lazy-load yang sempat berhenti juga ditunggu dan di-retry.
 
-## PDF
+## Output default
 
-Default:
-
-- target 2 PDF;
+- 2 PDF dulu;
 - maksimal 3 PDF;
 - maksimal 3,000,000 byte per PDF;
 - A4;
-- kompresi adaptif;
-- hasil otomatis masuk folder `Downloads\Shotdown`.
+- hasil ke `Downloads\Shotdown`.
 
 ## Menjalankan
 
@@ -56,13 +62,18 @@ run_extension.bat
 
 Pertama kali saja:
 
-1. aktifkan Developer mode;
-2. klik **Load unpacked**;
+1. Developer mode;
+2. **Load unpacked**;
 3. pilih folder `extension`;
 4. pin Shotdown.
 
-Setelah terpasang, tidak perlu menjalankan app desktop. Buka website seperti biasa lalu klik icon Shotdown.
+Untuk memaksa browser tertentu:
+
+```text
+run_extension.bat chrome
+run_extension.bat edge
+```
 
 ## Privasi
 
-Semua capture dan pembuatan PDF dilakukan lokal di browser. Tidak ada server upload, telemetry, atau profile WhatsApp terpisah.
+Capture dan pembuatan PDF dilakukan lokal. Tidak ada telemetry, upload server, atau browser profile WhatsApp kedua.

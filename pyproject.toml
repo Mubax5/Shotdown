@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shotdown-chatpdf"
-version = "0.3.0"
-description = "Pick a scrollable region, capture it cleanly, and export long browser content as size-capped PDF evidence."
+version = "0.4.0"
+description = "Select and crop scrollable browser regions, capture dynamic long content cleanly, and export size-capped PDF evidence."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

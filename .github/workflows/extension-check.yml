@@ -6,20 +6,30 @@ on:
       - "extension/**"
       - "run_extension.bat"
       - "package_extension.bat"
+      - "setup_github_metadata.bat"
       - ".github/workflows/extension-check.yml"
   pull_request:
     paths:
       - "extension/**"
       - "run_extension.bat"
       - "package_extension.bat"
+      - "setup_github_metadata.bat"
 
 jobs:
-  syntax:
+  extension:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - run: node --check extension/core.js
       - run: node --check extension/content.js
       - run: node --check extension/service-worker.js
+      - run: node extension/tests/core.test.cjs
+      - name: Validate manifest
+        shell: pwsh
+        run: |
+          $manifest = Get-Content extension/manifest.json -Raw | ConvertFrom-Json
+          if ($manifest.manifest_version -ne 3) { throw "Manifest must be v3" }
+          if ($manifest.version -ne "0.4.0") { throw "Unexpected extension version" }

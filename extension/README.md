@@ -1,31 +1,45 @@
 # Shotdown browser extension
 
-The extension directory is intentionally dependency-free. Load this folder directly as an unpacked Chromium extension.
+The `extension` folder can be loaded directly as an unpacked Chrome/Edge extension.
 
-## First install
+## Files
 
-- Chrome: open `chrome://extensions/`
-- Edge: open `edge://extensions/`
-- enable Developer mode
-- choose **Load unpacked**
-- select this `extension` directory
+- `core.js` — tested pure seam/PDF/partition algorithms.
+- `content.js` — selector, crop UI, lazy loading, capture loop, page streaming.
+- `service-worker.js` — active-tab validation, screenshot throttling, downloads.
+- `tests/core.test.cjs` — Node smoke tests for core algorithms.
 
-## Capture model
+## Reliability model
 
-Shotdown injects its selector only after the toolbar action is invoked. The user picks the scrollable container explicitly. The capture loop uses `chrome.tabs.captureVisibleTab`, crops to the chosen rectangle, and scrolls only the selected DOM element.
+### Screenshot throttle
 
-The overlay is hidden for each actual browser screenshot, so Shotdown controls do not appear in the result.
+`captureVisibleTab` is serialized per browser window and rate-limited. This prevents long captures from intermittently failing because screenshot requests arrive too quickly.
 
-## Dynamic content handling
+### Active-tab guard
 
-Full mode warms the selected container upward until its top content and scroll geometry remain stable across repeated passes. The downward capture loop recalculates scroll limits and performs stable-bottom waits rather than stopping on the first stalled scroll.
+Before every screenshot the service worker verifies that the requesting tab is still the active tab in its window.
 
-## Seam handling
+### Lazy content
 
-Adjacent frames deliberately overlap. Shotdown compares sampled RGB pixels across candidate overlaps near the measured scroll delta. Low-confidence seams are recaptured after an additional layout stabilization wait.
+Full mode repeatedly reaches the top and requires several stable passes across geometry and content fingerprints. Downward capture also waits for bottom growth instead of stopping on the first stall.
 
-## Export
+### Seam matching
 
-Captured strips are streamed into A4 raster pages instead of constructing one giant canvas. This avoids browser maximum-canvas-height failures on very long chats.
+The shared core scores candidate overlaps using both color difference and edge structure. Low-detail wallpaper contributes less weight than text/bubble edges. Ambiguous matches fall back to the measured scroll delta.
 
-Pages are JPEG-compressed and embedded directly in a small PDF writer. The optimizer tries two PDFs first, then three, while checking the final byte length of every generated PDF.
+### Fixed bands
+
+Stable top/bottom bands are detected conservatively from the first moving frame pair. They are kept once instead of repeated on every page.
+
+### Memory
+
+Capture frames are immediately stitched into A4 page canvases. Finished pages are converted to PNG blobs and the large canvas is released. PDF optimization then works from those page blobs.
+
+## Tests
+
+```powershell
+node --check core.js
+node --check content.js
+node --check service-worker.js
+node tests\core.test.cjs
+```
