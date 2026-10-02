@@ -1,10 +1,7 @@
-name: Windows build
+name: Legacy desktop build
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    tags: ["v*"]
 
 jobs:
   build:
@@ -20,5 +17,5 @@ jobs:
       - run: pyinstaller --noconfirm --clean --windowed --name Shotdown --paths src --collect-all playwright src/longchatpdf/__main__.py
       - uses: actions/upload-artifact@v4
         with:
-          name: Shotdown-Windows
+          name: Shotdown-Legacy-Desktop-Windows
           path: dist/Shotdown/

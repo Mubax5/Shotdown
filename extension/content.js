@@ -665,7 +665,7 @@
         const elapsed = performance.now() - started;
         const quietFor = performance.now() - lastMutationAt;
 
-        if (elapsed >= minWaitMs && stable >= 2 && quietFor >= 180) {
+        if (elapsed >= minWaitMs && stable >= 2 && quietFor >= 260) {
           return;
         }
 
@@ -1230,6 +1230,16 @@
       await sleep(150);
 
       let currentFull = await captureClip(freshClip);
+
+      const widthDrift =
+        Math.abs(currentFull.width - firstFull.width) /
+        Math.max(1, firstFull.width);
+      if (widthDrift > 0.03) {
+        throw new Error(
+          "The selected area changed width during capture. Keep the window size/zoom stable and try again.",
+        );
+      }
+
       const scaleY =
         currentFull.height / Math.max(1, freshClip.height);
 

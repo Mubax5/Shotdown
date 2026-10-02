@@ -1,0 +1,37 @@
+name: Extension package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate runtime files
+        run: |
+          node --check extension/core.js
+          node --check extension/content.js
+          node --check extension/service-worker.js
+          node extension/tests/core.test.cjs
+      - name: Package runtime-only ZIP
+        shell: pwsh
+        run: |
+          $files = @(
+            "manifest.json",
+            "core.js",
+            "content.js",
+            "service-worker.js"
+          )
+          New-Item -ItemType Directory -Path package | Out-Null
+          foreach ($file in $files) {
+            Copy-Item "extension/$file" "package/$file"
+          }
+          Compress-Archive -Path "package/*" -DestinationPath "Shotdown-extension.zip" -CompressionLevel Optimal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Shotdown-extension
+          path: Shotdown-extension.zip
