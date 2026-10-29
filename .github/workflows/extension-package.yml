@@ -35,3 +35,4 @@ jobs:
         with:
           name: Shotdown-extension
           path: Shotdown-extension.zip
+          retention-days: 1
