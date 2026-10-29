@@ -19,3 +19,4 @@ jobs:
         with:
           name: Shotdown-Legacy-Desktop-Windows
           path: dist/Shotdown/
+          retention-days: 1
