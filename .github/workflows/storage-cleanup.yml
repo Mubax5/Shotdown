@@ -1,0 +1,65 @@
+name: One-time Actions artifact cleanup
+
+on:
+  push:
+    paths:
+      - ".github/workflows/storage-cleanup.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  remove-old-artifacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Keep newest artifact of each name and delete older copies
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          page=1
+          files="$(mktemp)"
+          while :; do
+            response="$(curl --fail --silent --show-error --retry 3 \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${repo}/actions/artifacts?per_page=100&page=${page}")"
+            count="$(jq '.artifacts | length' <<< "$response")"
+            jq -c '.artifacts[] | {id,name,created_at,size_in_bytes,expired}' <<< "$response" >> "$files"
+            if (( count < 100 )); then break; fi
+            page=$((page + 1))
+          done
+
+          if [[ ! -s "$files" ]]; then
+            echo "No artifacts found."
+            exit 0
+          fi
+
+          # Keep the newest artifact for every unique artifact name.
+          # This never touches source code, releases, or repository packages.
+          mapfile -t rows < <(jq -s -r 'sort_by(.created_at) | reverse | .[] | [.id,.name,.size_in_bytes] | @tsv' "$files")
+          declare -A kept=()
+          deleted=0
+          bytes=0
+          for row in "${rows[@]}"; do
+            IFS=$'\t' read -r id name size <<< "$row"
+            if [[ -z "${kept[$name]+yes}" ]]; then
+              kept["$name"]="$id"
+              echo "KEEP: $name ($id; $size bytes)"
+              continue
+            fi
+            curl --fail --silent --show-error --retry 3 -X DELETE \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${repo}/actions/artifacts/${id}"
+            deleted=$((deleted + 1))
+            bytes=$((bytes + size))
+          done
+          echo "Deleted $deleted old artifacts, total $bytes bytes."
